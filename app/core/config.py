@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     supabase_service_role_key: Optional[str] = None
     supabase_cv_bucket: str = "cvs"
 
+    # Claude API, used for CV claim extraction and quiz generation.
+    anthropic_api_key: Optional[str] = None
+
     @property
     def is_production(self) -> bool:
         return self.environment is Environment.PRODUCTION
