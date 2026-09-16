@@ -34,3 +34,23 @@ async def create_signed_upload_url(path: str) -> dict:
         "token": data.get("token"),
         "path": path,
     }
+
+
+def download_object(path: str) -> bytes:
+    """Download a file from Supabase Storage at path using the service role
+    key, which bypasses RLS - used server-side once a candidate's signed
+    upload has completed.
+
+    Sync on purpose: callers (e.g. cv_analysis.parse_cv) are sync functions
+    invoked without await from async routes.
+    """
+    _require_config()
+    endpoint = f"{settings.supabase_url}/storage/v1/object/{settings.supabase_cv_bucket}/{path}"
+    headers = {
+        "Authorization": f"Bearer {settings.supabase_service_role_key}",
+        "apikey": settings.supabase_service_role_key,
+    }
+    with httpx.Client(timeout=10) as client:
+        response = client.get(endpoint, headers=headers)
+    response.raise_for_status()
+    return response.content
