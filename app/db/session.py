@@ -18,7 +18,23 @@ def _normalize_database_url(url: str) -> str:
     return url
 
 
-engine = create_engine(_normalize_database_url(settings.database_url))
+# Engine options tuned for a pooled Postgres (Supabase runs Supavisor):
+#
+# prepare_threshold=None turns off psycopg's automatic prepared statements.
+# Session mode (port 5432 on the pooler host) tolerates them, but transaction
+# mode (6543) hands each transaction a different backend, so a statement
+# prepared on one is absent on the next and queries fail with
+# 'prepared statement "_pg3_0" does not exist'. Disabling them costs little at
+# this scale and makes the port in DATABASE_URL a non-decision.
+#
+# pool_pre_ping discards connections the pooler closed while idle rather than
+# raising on the first query after a quiet period.
+_url = _normalize_database_url(settings.database_url)
+_engine_kwargs: dict = {"pool_pre_ping": True}
+if _url.startswith("postgresql+psycopg://"):
+    _engine_kwargs["connect_args"] = {"prepare_threshold": None}
+
+engine = create_engine(_url, **_engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 

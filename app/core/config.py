@@ -5,11 +5,11 @@ from typing import Optional
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# App Platform "bindable variables" (${db.DATABASE_URL}, ${APP_URL}, ...) are
-# substituted by DigitalOcean at deploy time. Database bind variables resolve
-# at run time only, so an env var that references one must be scoped RUN_TIME:
-# with RUN_AND_BUILD_TIME the reference is handed to the process as literal
-# text, which then fails deep inside whatever tries to use it.
+# App Platform "bindable variables" (${APP_URL}, ${db.DATABASE_URL}, ...) are
+# substituted by DigitalOcean at deploy time. A reference that names no
+# existing component, or one resolved too early in the deploy, is handed to the
+# process as literal text and then fails deep inside whatever consumes it.
+# DATABASE_URL is a plain secret now, so any ${...} left in it is a mistake.
 UNRESOLVED_BINDABLE = re.compile(r"\$\{[^}]*\}")
 
 # Placeholders that are fine locally but must never reach a deployment.
@@ -131,16 +131,16 @@ class Settings(BaseSettings):
         url = url.strip().strip("\"'")
         if not url:
             raise ValueError(
-                "DATABASE_URL is empty. On DigitalOcean App Platform the api "
-                "service needs DATABASE_URL=${acrovadb.DATABASE_URL} (the name of "
-                "the database component) with scope: RUN_TIME."
+                "DATABASE_URL is empty. Set it to the Postgres connection "
+                "string - on DigitalOcean App Platform, as a RUN_TIME secret on "
+                "the api service (see .do/app.yaml)."
             )
         if UNRESOLVED_BINDABLE.search(url):
             raise ValueError(
                 f"DATABASE_URL was passed through unsubstituted as {url!r}. "
-                "DigitalOcean database bind variables only resolve at run time, so "
-                "the env var must use scope: RUN_TIME - RUN_AND_BUILD_TIME leaves "
-                "the ${...} reference as literal text."
+                "It should be a literal connection string, not a DigitalOcean "
+                "bindable reference - a ${...} naming no app component, or read "
+                "at BUILD_TIME, is left as plain text."
             )
         if "://" not in url:
             raise ValueError(

@@ -45,6 +45,10 @@ class QuizQuestion(Base, TimestampMixin):
     question_type: Mapped[QuestionType] = mapped_column(Enum(QuestionType))
     options: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     correct_answer: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Reference answer for the question types that cannot be graded by exact
+    # match (free_text, code): the scorer compares the candidate's answer
+    # against this instead of correct_answer.
+    ideal_answer: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     skill_tag: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     quiz: Mapped["Quiz"] = relationship(back_populates="questions")
@@ -78,5 +82,8 @@ class QuizAnswer(Base, TimestampMixin):
     answer_value: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_correct: Mapped[Optional[bool]] = mapped_column(nullable=True)
     score_awarded: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Free-text rationale the scorer produced alongside score_awarded, shown
+    # back to the recruiter; null for answers graded by exact match.
+    ai_feedback: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     submission: Mapped["QuizSubmission"] = relationship(back_populates="answers")

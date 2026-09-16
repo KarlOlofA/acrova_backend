@@ -2,11 +2,14 @@
 # Deploy/update with: doctl apps create --spec .do/app.yaml
 #                  or: doctl apps update <app-id> --spec .do/app.yaml
 #
-# The "acrovadb" component below is an App Platform **Dev Database** — a Postgres
-# instance provisioned inside this same app, alongside the api service.
-# Its connection string is injected into the api service automatically via
-# the ${acrovadb.DATABASE_URL} bindable variable. This satisfies "hostable in the
-# same session/app" without standing up a separate Managed Database cluster.
+# The api service talks to an external Postgres (this project's Supabase
+# instance) through the DATABASE_URL secret below.
+#
+# There is deliberately no `databases:` block. An App Platform dev database is
+# provisioned *inside* the app, which has two problems: the component cannot be
+# renamed (a rename is read as destroy+create and parks the deploy on a
+# "creating <name>" step), and its storage does not outlive the app. Supabase
+# already hosts the CV bucket, so its Postgres is reused here.
 name: acrova-backend
 region: nyc
 
@@ -59,16 +62,22 @@ services:
       - key: CORS_ORIGINS
         scope: RUN_TIME
         value: "*"
-      # Must be RUN_TIME: database bind variables are only resolved once the
-      # app is deployed, so a RUN_AND_BUILD_TIME scope hands the process the
-      # literal text "${acrovadb.DATABASE_URL}" and every connection attempt
-      # fails. The "acrovadb" prefix is the database component name below -
-      # a name that does not match a component is left unsubstituted too.
-      # Nothing in the build needs the database - migrations run in
-      # run_command - so run-time only costs nothing.
+      # Full Postgres connection string. Kept as a SECRET with no value in
+      # the spec - set it in the console (or fill it in before `doctl apps
+      # update`) so the password is never committed.
+      #
+      # Use Supabase's **shared pooler** host, not the direct
+      # db.<ref>.supabase.co one: direct connections are IPv6-only unless the
+      # IPv4 add-on is purchased, while the shared pooler is IPv4 on every
+      # plan. Port 5432 on the pooler host is session mode, which is the safe
+      # default here - port 6543 is transaction mode and breaks prepared
+      # statements (see app/db/session.py).
+      #   postgresql://postgres.<project-ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+      # RUN_TIME only: nothing in the build touches the database, since
+      # migrations run from run_command.
       - key: DATABASE_URL
         scope: RUN_TIME
-        value: ${acrovadb.DATABASE_URL}
+        type: SECRET
       - key: JWT_SECRET
         scope: RUN_TIME
         type: SECRET
@@ -91,8 +100,3 @@ services:
       - key: SUPABASE_CV_BUCKET
         scope: RUN_TIME
         value: cvs
-
-databases:
-  - name: acrovadb
-    engine: PG
-    production: false
