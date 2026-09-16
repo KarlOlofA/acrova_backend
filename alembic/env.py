@@ -21,6 +21,19 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# Tables that live in the database but deliberately not in app.models, so
+# autogenerate must leave them alone. Without this filter, `alembic revision
+# --autogenerate` reads them as "removed from the models" and emits a
+# drop_table - a silent path to losing them. `public.tests` was created by hand
+# in the Supabase dashboard and is kept on purpose.
+UNMANAGED_TABLES = {"tests"}
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name in UNMANAGED_TABLES:
+        return False
+    return True
+
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
@@ -45,6 +58,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -66,7 +80,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -12,9 +12,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # DATABASE_URL is a plain secret now, so any ${...} left in it is a mistake.
 UNRESOLVED_BINDABLE = re.compile(r"\$\{[^}]*\}")
 
-# Placeholders that are fine locally but must never reach a deployment.
+# Placeholder that is fine locally but must never reach a deployment.
 DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"
-DEV_DATABASE_URL = "postgresql+psycopg://acrova:acrova@localhost:5432/acrova"
 
 
 class Environment(str, Enum):
@@ -56,9 +55,13 @@ class Settings(BaseSettings):
     log_level: Optional[str] = None
     docs_enabled: bool = True
 
-    # Dev-only placeholder; override via .env / DigitalOcean Managed
-    # Postgres connection string in production.
-    database_url: str = DEV_DATABASE_URL
+    # Required everywhere, with no default on purpose. A default here is a
+    # trap: when the deployed environment loses DATABASE_URL the process
+    # silently dials the fallback instead of failing, and the misconfiguration
+    # surfaces as a connection-refused traceback from deep inside SQLAlchemy
+    # rather than as "DATABASE_URL is not set". Locally, copy .env.example to
+    # .env - it ships a working value for the docker Postgres one-liner.
+    database_url: str
 
     # LinkedIn OAuth (OpenID Connect "Sign in with LinkedIn").
     linkedin_client_id: Optional[str] = None
@@ -120,6 +123,28 @@ class Settings(BaseSettings):
             return self.linkedin_redirect_uri
         return f"{self.base_url}{self.api_prefix}/auth/linkedin/callback"
 
+    @model_validator(mode="before")
+    @classmethod
+    def _require_database_url(cls, data: Any) -> Any:
+        """Report a DATABASE_URL that was never provided at all.
+
+        Pydantic's own message for a missing required field names the *field*
+        ("database_url: Field required"), not the environment variable to set,
+        so replace it with something actionable.
+        """
+        if isinstance(data, dict) and "database_url" not in data:
+            raise ValueError(
+                "DATABASE_URL is not set. Point it at the Postgres connection "
+                "string:\n"
+                "  - locally: cp .env.example .env (its default matches the "
+                "docker Postgres one-liner in that file)\n"
+                "  - DigitalOcean App Platform: a RUN_TIME secret on the api "
+                "service, set in the console - a `type: SECRET` entry with no "
+                "value in .do/app.yaml does not create the variable, it only "
+                "preserves an existing one."
+            )
+        return data
+
     @field_validator("database_url", mode="after")
     @classmethod
     def _check_database_url(cls, url: str) -> str:
@@ -156,7 +181,6 @@ class Settings(BaseSettings):
                 name
                 for name, value, placeholder in (
                     ("JWT_SECRET", self.jwt_secret, DEV_JWT_SECRET),
-                    ("DATABASE_URL", self.database_url, DEV_DATABASE_URL),
                 )
                 if value == placeholder
             ]
