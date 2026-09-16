@@ -3,7 +3,12 @@
 Reads HOST / PORT / ENVIRONMENT from the environment (see .env.example), so
 the same command works for local dev and on DigitalOcean:
 
-    python main.py
+    uv run main.py
+
+DigitalOcean's Python buildpack installs into its own virtualenv rather than
+./.venv, so the deployed run command adds two flags to reuse it as-is:
+
+    uv run --active --no-sync main.py
 """
 
 import uvicorn

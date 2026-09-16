@@ -1,0 +1,42 @@
+# Dependency manifest for the DigitalOcean App Platform Python buildpack.
+#
+# The buildpack picks uv when pyproject.toml + uv.lock + .python-version are
+# present in the repo root (and no requirements.txt / Pipfile / poetry.lock,
+# which would take precedence). It runs `uv sync` at build time, so the
+# run command only has to do `uv run main.py`.
+#
+# Add or bump a dependency with `uv add <pkg>` / `uv lock --upgrade-package
+# <pkg>` and commit the updated uv.lock — the deploy installs exactly what
+# the lockfile pins.
+
+[project]
+name = "acrova-backend"
+version = "0.1.0"
+description = "Acrova Quiz API - FastAPI backend"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "sqlalchemy>=2.0",
+    # Postgres driver. [binary] ships prebuilt wheels so the build needs no
+    # libpq/compiler; app/db/session.py rewrites DATABASE_URL to
+    # postgresql+psycopg://.
+    "psycopg[binary]>=3.1",
+    # Form/file parsing for FastAPI request bodies.
+    "python-multipart>=0.0.9",
+    "pyjwt>=2.8",
+    "httpx>=0.27",
+    "alembic>=1.13",
+    # uv itself is a runtime dependency on purpose: App Platform's buildpack
+    # only puts uv on PATH during the *build*, so the run command below
+    # ("uv run ...") needs a uv that lives inside the synced virtualenv.
+    # >=0.8 for the `--active` flag.
+    "uv>=0.8",
+]
+
+[tool.uv]
+# app/ is imported from the working directory rather than installed, so there
+# is nothing to build here - only the dependencies get installed.
+package = false

@@ -12,22 +12,39 @@ region: nyc
 
 services:
   - name: api
-    dockerfile_path: Dockerfile
+    # Build with the Python buildpack (no Dockerfile in the repo root, so
+    # buildpack detection wins). The buildpack sees pyproject.toml + uv.lock
+    # + .python-version and runs `uv sync --locked` into a virtualenv that is
+    # activated for the run command below.
+    environment_slug: python
     source_dir: /
     github:
       repo: KarlOlofA/acrova_backend
       branch: main
       deploy_on_push: true
+    # The buildpack's uv is build-time only, so uv is pinned as a project
+    # dependency and comes from the synced virtualenv here. --active reuses
+    # that virtualenv (App Platform exports VIRTUAL_ENV, not
+    # UV_PROJECT_ENVIRONMENT, at run time) and --no-sync keeps boot from
+    # re-resolving dependencies. Mirrors the Procfile.
+    run_command: uv run --active --no-sync alembic upgrade head && uv run --active --no-sync main.py
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs
     envs:
       # Flip this to "development" here (or in the console) to get reload +
-      # debug logging without touching the code. The Dockerfile already
-      # defaults it to production.
+      # debug logging without touching the code.
       - key: ENVIRONMENT
         scope: RUN_TIME
         value: production
+      # main.py binds to HOST:PORT. The buildpack image sets no defaults (the
+      # old Dockerfile did), and App Platform routes to http_port above.
+      - key: HOST
+        scope: RUN_TIME
+        value: "0.0.0.0"
+      - key: PORT
+        scope: RUN_TIME
+        value: "8080"
       # The public address of the service. ${APP_URL} resolves to this app's
       # URL; replace it with http://<droplet-ip>:<port> on a plain Droplet.
       - key: PUBLIC_BASE_URL
