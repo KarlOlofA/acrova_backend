@@ -59,9 +59,10 @@ async def create_quiz(payload: QuizCreateRequest, db: Session = Depends(get_db))
                 quiz_id=quiz.id,
                 order_index=question["order_index"],
                 question_text=question["question_text"],
-                question_type=QuestionType.MULTIPLE_CHOICE,
+                question_type=QuestionType(question["question_type"]),
                 options=question["options"],
                 correct_answer=question["correct_answer"],
+                ideal_answer=question.get("ideal_answer"),
                 skill_tag=question["skill_tag"],
             )
         )
@@ -87,7 +88,13 @@ async def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db))
 
     quiz_dict = {
         "questions": [
-            {"id": question.id, "correct_answer": question.correct_answer}
+            {
+                "id": question.id,
+                "question_text": question.question_text,
+                "question_type": question.question_type.value,
+                "correct_answer": question.correct_answer,
+                "ideal_answer": question.ideal_answer,
+            }
             for question in quiz.questions
         ]
     }
@@ -109,13 +116,15 @@ async def submit_quiz(payload: QuizSubmitRequest, db: Session = Depends(get_db))
     db.flush()
 
     for detail in result["details"]:
+        answer_value_key = "answer" if detail["question_type"] == "multiple_choice" else "text"
         db.add(
             QuizAnswer(
                 submission_id=submission.id,
                 question_id=detail["question_id"],
-                answer_value={"answer": detail["submitted_answer"]},
+                answer_value={answer_value_key: detail["submitted_answer"]},
                 is_correct=detail["is_correct"],
-                score_awarded=1.0 if detail["is_correct"] else 0.0,
+                score_awarded=detail["score_awarded"],
+                ai_feedback=detail.get("ai_feedback"),
             )
         )
 
