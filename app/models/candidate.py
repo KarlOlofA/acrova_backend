@@ -1,10 +1,11 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import DateTime, Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, new_uuid
-from app.models.enums import OrgCandidateStatus
+from app.models.enums import CVStatus, OrgCandidateStatus
 
 if TYPE_CHECKING:
     from app.models.organization import Organization
@@ -20,6 +21,12 @@ class Candidate(Base, TimestampMixin):
     user_id: Mapped[Optional[str]] = mapped_column(
         String, ForeignKey("users.id"), unique=True, nullable=True
     )
+
+    # Points at the candidate's CV PDF in Supabase Storage (bucket path,
+    # not a full URL) — set once a signed upload completes.
+    cv_storage_path: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    cv_status: Mapped[CVStatus] = mapped_column(Enum(CVStatus), default=CVStatus.NONE)
+    cv_uploaded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[Optional["User"]] = relationship(back_populates="candidate")
     profiles: Mapped[list["CandidateProfile"]] = relationship(back_populates="candidate")

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, new_uuid
@@ -18,6 +18,10 @@ class Organization(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
     name: Mapped[str] = mapped_column(String)
     slug: Mapped[str] = mapped_column(String, unique=True, index=True)
+
+    # Total number of quizzes this organization is allowed to create.
+    # Enforced at quiz-creation time once quiz generation is implemented.
+    quiz_quota: Mapped[int] = mapped_column(Integer, default=0)
 
     members: Mapped[list["OrganizationMember"]] = relationship(back_populates="organization")
     candidate_links: Mapped[list["OrganizationCandidate"]] = relationship(

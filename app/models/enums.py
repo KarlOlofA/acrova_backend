@@ -23,6 +23,12 @@ class OrgCandidateStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class CVStatus(str, enum.Enum):
+    NONE = "none"
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+
+
 class ProfileSourceType(str, enum.Enum):
     CV = "cv"
     LINKEDIN = "linkedin"

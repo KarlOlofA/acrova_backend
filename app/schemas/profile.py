@@ -5,15 +5,7 @@ from app.models.enums import ProfileSourceType, ProfileStatus
 from app.schemas.common import ORMModel, TimestampedModel
 
 
-class CVUploadResponse(TimestampedModel):
-    id: str
-    candidate_id: str
-    source_type: ProfileSourceType
-    status: ProfileStatus
-    extracted_claims: Optional[list[dict]] = None
-
-
-class LinkedInAnalyzeRequest(ORMModel):
+class CVAnalyzeRequest(ORMModel):
     candidate_id: str
 
 

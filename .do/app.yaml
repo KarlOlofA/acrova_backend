@@ -1,0 +1,51 @@
+# DigitalOcean App Platform spec.
+# Deploy/update with: doctl apps create --spec .do/app.yaml
+#                  or: doctl apps update <app-id> --spec .do/app.yaml
+#
+# The "db" component below is an App Platform **Dev Database** — a Postgres
+# instance provisioned inside this same app, alongside the api service.
+# Its connection string is injected into the api service automatically via
+# the ${db.DATABASE_URL} bindable variable. This satisfies "hostable in the
+# same session/app" without standing up a separate Managed Database cluster.
+name: acrova-backend
+region: nyc
+
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    source_dir: /
+    github:
+      repo: KarlOlofA/acrova_backend
+      branch: main
+      deploy_on_push: true
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${db.DATABASE_URL}
+      - key: JWT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: LINKEDIN_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: LINKEDIN_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+      - key: LINKEDIN_REDIRECT_URI
+        scope: RUN_TIME
+      - key: SUPABASE_URL
+        scope: RUN_TIME
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SUPABASE_CV_BUCKET
+        scope: RUN_TIME
+        value: cvs
+
+databases:
+  - name: db
+    engine: PG
+    production: false

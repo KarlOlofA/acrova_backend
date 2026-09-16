@@ -11,10 +11,22 @@ class Settings(BaseSettings):
     # Postgres connection string in production.
     database_url: str = "postgresql+psycopg://acrova:acrova@localhost:5432/acrova"
 
-    # TODO: LinkedIn OAuth wiring, unset until the flow is implemented.
+    # LinkedIn OAuth (OpenID Connect "Sign in with LinkedIn").
     linkedin_client_id: Optional[str] = None
     linkedin_client_secret: Optional[str] = None
     linkedin_redirect_uri: Optional[str] = None
+
+    # JWT bearer tokens issued after a successful LinkedIn login.
+    # jwt_secret MUST be overridden via env/secret in any real deployment.
+    jwt_secret: str = "dev-only-insecure-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24 * 7
+    oauth_state_expire_minutes: int = 10
+
+    # Supabase Storage, used to issue signed CV upload URLs.
+    supabase_url: Optional[str] = None
+    supabase_service_role_key: Optional[str] = None
+    supabase_cv_bucket: str = "cvs"
 
     class Config:
         env_file = ".env"
