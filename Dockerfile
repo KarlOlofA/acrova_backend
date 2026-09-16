@@ -7,7 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+ENV ENVIRONMENT=production
+ENV HOST=0.0.0.0
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+# HOST/PORT/ENVIRONMENT come from the environment; main.py reads them.
+CMD ["sh", "-c", "alembic upgrade head && python main.py"]
