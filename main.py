@@ -5,10 +5,11 @@ the same command works for local dev and on DigitalOcean:
 
     uv run main.py
 
-DigitalOcean's Python buildpack installs into its own virtualenv rather than
-./.venv, so the deployed run command adds two flags to reuse it as-is:
+DigitalOcean's Python buildpack installs dependencies into its Python
+install prefix rather than ./.venv, so the deployed run command points uv at
+that prefix and reuses it as-is (see Procfile / .do/app.yaml):
 
-    uv run --active --no-sync main.py
+    UV_PROJECT_ENVIRONMENT=... uv run --no-sync main.py
 """
 
 import uvicorn

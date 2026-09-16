@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     # outside the machine (required on DigitalOcean), 127.0.0.1 for local only.
     # PORT is injected by App Platform, so don't hardcode it there.
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8080
 
     # --- where clients reach the API ------------------------------------
     # The public address of this server. On App Platform set it to the app

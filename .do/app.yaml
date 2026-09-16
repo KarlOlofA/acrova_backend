@@ -22,12 +22,17 @@ services:
       repo: KarlOlofA/acrova_backend
       branch: main
       deploy_on_push: true
-    # The buildpack's uv is build-time only, so uv is pinned as a project
-    # dependency and comes from the synced virtualenv here. --active reuses
-    # that virtualenv (App Platform exports VIRTUAL_ENV, not
-    # UV_PROJECT_ENVIRONMENT, at run time) and --no-sync keeps boot from
-    # re-resolving dependencies. Mirrors the Procfile.
-    run_command: uv run --active --no-sync alembic upgrade head && uv run --active --no-sync main.py
+    # The buildpack's own uv is build-time only, so uv is pinned as a project
+    # dependency and the copy used here comes from the installed environment.
+    #
+    # That environment is the Python install prefix itself (.heroku/python),
+    # not a virtualenv, and the buildpack only exports UV_PROJECT_ENVIRONMENT
+    # during the build. Without it at run time, uv ignores the installed
+    # packages, creates an empty ./.venv and the app dies with
+    # ModuleNotFoundError - so derive the prefix from the python on PATH.
+    # --no-sync then reuses it as-is instead of re-resolving on boot.
+    # Mirrors the Procfile.
+    run_command: export UV_PROJECT_ENVIRONMENT=$(dirname $(dirname $(command -v python3))) && uv run --no-sync alembic upgrade head && exec uv run --no-sync main.py
     http_port: 8080
     instance_count: 1
     instance_size_slug: basic-xxs
