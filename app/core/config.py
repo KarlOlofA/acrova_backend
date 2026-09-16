@@ -1,8 +1,16 @@
+import re
 from enum import Enum
 from typing import Optional
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# App Platform "bindable variables" (${db.DATABASE_URL}, ${APP_URL}, ...) are
+# substituted by DigitalOcean at deploy time. Database bind variables resolve
+# at run time only, so an env var that references one must be scoped RUN_TIME:
+# with RUN_AND_BUILD_TIME the reference is handed to the process as literal
+# text, which then fails deep inside whatever tries to use it.
+UNRESOLVED_BINDABLE = re.compile(r"\$\{[^}]*\}")
 
 # Placeholders that are fine locally but must never reach a deployment.
 DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"
@@ -111,6 +119,35 @@ class Settings(BaseSettings):
         if self.linkedin_redirect_uri:
             return self.linkedin_redirect_uri
         return f"{self.base_url}{self.api_prefix}/auth/linkedin/callback"
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _check_database_url(cls, url: str) -> str:
+        """Catch a DATABASE_URL that never got a real value.
+
+        Without this the failure surfaces as SQLAlchemy's opaque "Could not
+        parse SQLAlchemy URL from given URL string" at import time.
+        """
+        url = url.strip().strip("\"'")
+        if not url:
+            raise ValueError(
+                "DATABASE_URL is empty. On DigitalOcean App Platform the api "
+                "service needs DATABASE_URL=${acrovadb.DATABASE_URL} (the name of "
+                "the database component) with scope: RUN_TIME."
+            )
+        if UNRESOLVED_BINDABLE.search(url):
+            raise ValueError(
+                f"DATABASE_URL was passed through unsubstituted as {url!r}. "
+                "DigitalOcean database bind variables only resolve at run time, so "
+                "the env var must use scope: RUN_TIME - RUN_AND_BUILD_TIME leaves "
+                "the ${...} reference as literal text."
+            )
+        if "://" not in url:
+            raise ValueError(
+                "DATABASE_URL is not a connection URL (expected something like "
+                "postgresql://user:password@host:5432/dbname)."
+            )
+        return url
 
     @model_validator(mode="after")
     def _reject_dev_placeholders_in_production(self) -> "Settings":

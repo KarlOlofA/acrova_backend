@@ -2,10 +2,10 @@
 # Deploy/update with: doctl apps create --spec .do/app.yaml
 #                  or: doctl apps update <app-id> --spec .do/app.yaml
 #
-# The "db" component below is an App Platform **Dev Database** — a Postgres
+# The "acrovadb" component below is an App Platform **Dev Database** — a Postgres
 # instance provisioned inside this same app, alongside the api service.
 # Its connection string is injected into the api service automatically via
-# the ${db.DATABASE_URL} bindable variable. This satisfies "hostable in the
+# the ${acrovadb.DATABASE_URL} bindable variable. This satisfies "hostable in the
 # same session/app" without standing up a separate Managed Database cluster.
 name: acrova-backend
 region: nyc
@@ -59,9 +59,16 @@ services:
       - key: CORS_ORIGINS
         scope: RUN_TIME
         value: "*"
+      # Must be RUN_TIME: database bind variables are only resolved once the
+      # app is deployed, so a RUN_AND_BUILD_TIME scope hands the process the
+      # literal text "${acrovadb.DATABASE_URL}" and every connection attempt
+      # fails. The "acrovadb" prefix is the database component name below -
+      # a name that does not match a component is left unsubstituted too.
+      # Nothing in the build needs the database - migrations run in
+      # run_command - so run-time only costs nothing.
       - key: DATABASE_URL
-        scope: RUN_AND_BUILD_TIME
-        value: ${db.DATABASE_URL}
+        scope: RUN_TIME
+        value: ${acrovadb.DATABASE_URL}
       - key: JWT_SECRET
         scope: RUN_TIME
         type: SECRET
@@ -86,6 +93,6 @@ services:
         value: cvs
 
 databases:
-  - name: db
+  - name: acrovadb
     engine: PG
     production: false
