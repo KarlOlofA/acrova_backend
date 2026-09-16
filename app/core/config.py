@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Single switch for the whole app: ENVIRONMENT=development | production.
     # Everything that differs between local dev and DigitalOcean (auto-reload,
     # log level, CORS defaults, required secrets) is derived from this.
+    # Matched case-insensitively - see _normalize_environment.
     environment: Environment = Environment.DEVELOPMENT
 
     app_name: str = "Acrova Quiz API"
@@ -122,6 +123,21 @@ class Settings(BaseSettings):
         if self.linkedin_redirect_uri:
             return self.linkedin_redirect_uri
         return f"{self.base_url}{self.api_prefix}/auth/linkedin/callback"
+
+    @field_validator("environment", mode="before")
+    @classmethod
+    def _normalize_environment(cls, value: Any) -> Any:
+        """Accept ENVIRONMENT in any case, with surrounding whitespace.
+
+        The enum values are lowercase, so a console entry of "PRODUCTION" or
+        "Production" would otherwise abort startup with pydantic's
+        "Input should be 'development' or 'production'" - a confusing failure
+        when the value plainly looks right. Deployment UIs encourage
+        SCREAMING_CASE for variable names and it bleeds into the values.
+        """
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
     @model_validator(mode="before")
     @classmethod
