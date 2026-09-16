@@ -11,12 +11,12 @@ SCOPES = "openid profile email"
 
 
 def build_authorization_url(state: str) -> str:
-    if not settings.linkedin_client_id or not settings.linkedin_redirect_uri:
+    if not settings.linkedin_client_id:
         raise NotImplementedError("LinkedIn OAuth client credentials are not configured")
     params = {
         "response_type": "code",
         "client_id": settings.linkedin_client_id,
-        "redirect_uri": settings.linkedin_redirect_uri,
+        "redirect_uri": settings.resolved_linkedin_redirect_uri,
         "state": state,
         "scope": SCOPES,
     }
@@ -29,7 +29,7 @@ async def exchange_code_for_token(code: str) -> dict:
     data = {
         "grant_type": "authorization_code",
         "code": code,
-        "redirect_uri": settings.linkedin_redirect_uri,
+        "redirect_uri": settings.resolved_linkedin_redirect_uri,
         "client_id": settings.linkedin_client_id,
         "client_secret": settings.linkedin_client_secret,
     }

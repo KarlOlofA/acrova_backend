@@ -22,6 +22,21 @@ services:
     instance_count: 1
     instance_size_slug: basic-xxs
     envs:
+      # Flip this to "development" here (or in the console) to get reload +
+      # debug logging without touching the code. The Dockerfile already
+      # defaults it to production.
+      - key: ENVIRONMENT
+        scope: RUN_TIME
+        value: production
+      # The public address of the service. ${APP_URL} resolves to this app's
+      # URL; replace it with http://<droplet-ip>:<port> on a plain Droplet.
+      - key: PUBLIC_BASE_URL
+        scope: RUN_TIME
+        value: ${APP_URL}
+      # Comma-separated browser origins, or "*" for any.
+      - key: CORS_ORIGINS
+        scope: RUN_TIME
+        value: "*"
       - key: DATABASE_URL
         scope: RUN_AND_BUILD_TIME
         value: ${db.DATABASE_URL}
@@ -34,6 +49,9 @@ services:
       - key: LINKEDIN_CLIENT_SECRET
         scope: RUN_TIME
         type: SECRET
+      # Optional: leave unset and it is derived from PUBLIC_BASE_URL as
+      # <base-url>/api/auth/linkedin/callback. Set it only if LinkedIn is
+      # registered with a different URI.
       - key: LINKEDIN_REDIRECT_URI
         scope: RUN_TIME
       - key: SUPABASE_URL
