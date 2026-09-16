@@ -5,6 +5,9 @@ class Settings(BaseSettings):
     app_name: str = "Acrova Quiz API"
     api_prefix: str = "/api"
 
+    database_url: str = ""
+    anthropic_api_key: str = ""
+
     class Config:
         env_file = ".env"
 
